@@ -6,8 +6,10 @@ you take your whole shopping list and grab everything in one trip. Batch
 operations work the same way: instead of calling get() or set() over and
 over, you do it all at once.
 
-This is faster and more convenient, especially when you have lots of keys
-to work with.
+This is more convenient -- one call instead of many -- especially when you
+have lots of keys to work with. Under the hood it is still a plain loop
+calling ``set`` or ``get`` one key at a time, so it is not actually faster
+than doing it yourself; it just keeps your code short and tidy.
 
 Example:
     >>> store = BasicStore()

@@ -61,7 +61,10 @@ class Namespace:
         return f"{self._prefix}{key}"
 
     def set(self, key: str, value: StorableValue) -> None:
-        """Store a value under the prefixed key.
+        """Store a value, filing it inside this namespace's folder.
+
+        Like dropping a paper into your own labeled folder -- the folder
+        name is stamped onto the key automatically.
 
         Args:
             key: The short key name (prefix is added automatically).
@@ -72,6 +75,9 @@ class Namespace:
 
     def get(self, key: str) -> StorableValue:
         """Retrieve a value by its short key name.
+
+        Like pulling a paper out of your own folder by its short name --
+        you never have to write out the folder prefix yourself.
 
         Args:
             key: The short key name.
@@ -88,6 +94,9 @@ class Namespace:
     def get_or_default(self, key: str, default: StorableValue = None) -> StorableValue:
         """Retrieve a value, returning a default if missing.
 
+        Like looking in your folder for a paper but having a spare copy
+        ready in case it is not filed there.
+
         Args:
             key: The short key name.
             default: Value to return if the key is missing.
@@ -101,6 +110,8 @@ class Namespace:
     def delete(self, key: str) -> bool:
         """Remove a key from the namespace.
 
+        Like taking a single paper out of your folder and shredding it.
+
         Args:
             key: The short key name.
 
@@ -112,6 +123,9 @@ class Namespace:
 
     def exists(self, key: str) -> bool:
         """Check whether a key exists in this namespace.
+
+        Like flipping through your folder to see if a paper is filed
+        there, without pulling it out.
 
         Args:
             key: The short key name.
@@ -145,6 +159,9 @@ class Namespace:
 
     def size(self) -> int:
         """Return the number of keys in this namespace.
+
+        Like counting only the papers in your own folder, ignoring
+        everyone else's folders in the cabinet.
 
         Returns:
             The count of keys with this namespace's prefix.

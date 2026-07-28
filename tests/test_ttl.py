@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from pykv.errors import KeyNotFoundError
+from pykv.errors import KeyExpiredError, KeyNotFoundError, PyKVError
 from pykv.ttl import TTLStore
 
 # Time constants to avoid magic numbers.
@@ -29,12 +29,25 @@ class TestTTLStoreBasics:
         assert store.get("session") == "abc123"
 
     def test_expired_key_raises(self) -> None:
-        """Raise KeyNotFoundError when a key has expired."""
+        """Raise KeyExpiredError when a key has expired."""
         store = TTLStore()
         store.set("temp", "data", ttl=SHORT_TTL)
         time.sleep(WAIT_FOR_EXPIRY)
-        with pytest.raises(KeyNotFoundError):
+        with pytest.raises(KeyExpiredError):
             store.get("temp")
+
+    def test_expired_key_error_is_not_key_not_found(self) -> None:
+        """Distinguish an expired key from one that never existed."""
+        store = TTLStore()
+        store.set("temp", "data", ttl=SHORT_TTL)
+        time.sleep(WAIT_FOR_EXPIRY)
+        # An expired key raises KeyExpiredError, NOT KeyNotFoundError, so
+        # `except KeyNotFoundError` must not catch it.
+        with pytest.raises(KeyExpiredError) as exc_info:
+            store.get("temp")
+        assert not isinstance(exc_info.value, KeyNotFoundError)
+        assert isinstance(exc_info.value, PyKVError)
+        assert exc_info.value.key == "temp"
 
     def test_get_missing_key_raises(self) -> None:
         """Raise KeyNotFoundError for a key that was never set."""
@@ -155,11 +168,11 @@ class TestTTLStoreRemaining:
             store.ttl_remaining("ghost")
 
     def test_remaining_raises_for_expired(self) -> None:
-        """Raise KeyNotFoundError for an expired key."""
+        """Raise KeyExpiredError for an expired key."""
         store = TTLStore()
         store.set("temp", "data", ttl=SHORT_TTL)
         time.sleep(WAIT_FOR_EXPIRY)
-        with pytest.raises(KeyNotFoundError):
+        with pytest.raises(KeyExpiredError):
             store.ttl_remaining("temp")
 
 

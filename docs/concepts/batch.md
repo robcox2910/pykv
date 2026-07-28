@@ -6,6 +6,8 @@ Imagine going to the grocery store. You could make a separate trip for each item
 
 Instead, you write a **grocery list** and grab everything in one trip. Batch operations work the same way: instead of calling `set()` or `get()` one key at a time, you handle multiple keys in a single call.
 
+> **Honest note:** Batch operations are about *convenience*, not raw speed. Under the hood they are a plain loop that still calls `set()` or `get()` one key at a time, and they are **not** atomic (they do not all-succeed-or-all-fail together). The win is cleaner, shorter code -- one call instead of many.
+
 ## Batch Set
 
 ```python

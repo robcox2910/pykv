@@ -22,7 +22,7 @@ Example:
 import threading
 import time
 
-from pykv.errors import KeyNotFoundError
+from pykv.errors import KeyExpiredError, KeyNotFoundError
 from pykv.types import StorableValue
 
 
@@ -97,7 +97,9 @@ class TTLStore:
         """Retrieve a value, raising an error if missing or expired.
 
         Like reaching into the fridge -- if the milk has expired,
-        the fridge throws it away and tells you it is gone.
+        the fridge throws it away and tells you it is gone. PyKV even
+        tells you *which* happened: the key never existed, or it existed
+        but its timer ran out.
 
         Args:
             key: The name to look up.
@@ -106,18 +108,22 @@ class TTLStore:
             The stored value.
 
         Raises:
-            KeyNotFoundError: If the key does not exist or has expired.
+            KeyNotFoundError: If the key was never set.
+            KeyExpiredError: If the key existed but its TTL has passed.
 
         """
         with self._lock:
             if key not in self._data:
                 raise KeyNotFoundError(key)
             if self._evict_if_expired(key):
-                raise KeyNotFoundError(key)
+                raise KeyExpiredError(key)
             return self._data[key]
 
     def get_or_default(self, key: str, default: StorableValue = None) -> StorableValue:
         """Retrieve a value, returning a default if missing or expired.
+
+        Like reaching into the fridge for milk but keeping a backup carton
+        ready in case it is gone or past its date.
 
         Args:
             key: The name to look up.
@@ -137,6 +143,9 @@ class TTLStore:
     def delete(self, key: str) -> bool:
         """Remove a key and its value from the store.
 
+        Like pulling an item out of the fridge and tossing it, timer
+        sticker and all.
+
         Args:
             key: The name to remove.
 
@@ -154,6 +163,9 @@ class TTLStore:
     def exists(self, key: str) -> bool:
         """Check whether a key exists and has not expired.
 
+        Like peeking in the fridge to see if a still-fresh carton is
+        there, without actually taking it out.
+
         Args:
             key: The name to check for.
 
@@ -168,6 +180,9 @@ class TTLStore:
 
     def keys(self) -> list[str]:
         """Return all non-expired keys.
+
+        Like reading the labels on every carton still fresh in the
+        fridge -- anything past its date is thrown out first.
 
         Returns:
             A list of all key names that have not expired.
@@ -194,14 +209,15 @@ class TTLStore:
             Seconds remaining, or None if the key has no TTL.
 
         Raises:
-            KeyNotFoundError: If the key does not exist or has expired.
+            KeyNotFoundError: If the key was never set.
+            KeyExpiredError: If the key existed but its TTL has passed.
 
         """
         with self._lock:
             if key not in self._data:
                 raise KeyNotFoundError(key)
             if self._evict_if_expired(key):
-                raise KeyNotFoundError(key)
+                raise KeyExpiredError(key)
             if key not in self._expiry:
                 return None
             return max(0.0, self._expiry[key] - time.monotonic())
@@ -214,6 +230,9 @@ class TTLStore:
 
     def size(self) -> int:
         """Return the number of non-expired entries.
+
+        Like counting how many still-fresh cartons are in the fridge --
+        expired ones are cleared out and not counted.
 
         Returns:
             The count of active (non-expired) key-value pairs.
@@ -228,6 +247,10 @@ class TTLStore:
 
     def to_dict(self) -> dict[str, StorableValue]:
         """Return a copy of all non-expired data.
+
+        Like photocopying every still-fresh label in the fridge -- expired
+        items are thrown out first, and the expiration timers themselves
+        are not included in the copy (just the values).
 
         Returns:
             A dictionary of all active key-value pairs.

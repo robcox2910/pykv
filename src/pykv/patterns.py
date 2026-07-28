@@ -32,6 +32,8 @@ def match_keys(store: BasicStore, pattern: str) -> list[str]:
 
     Like searching your desk for sticky notes that match a description.
     Uses the same wildcards as file searches: ``*``, ``?``, ``[abc]``.
+    Matching is always case-sensitive, so ``"User:*"`` will not match
+    ``"user:alice"`` -- the behavior is the same on every operating system.
 
     Args:
         store: The store to search.
@@ -42,7 +44,7 @@ def match_keys(store: BasicStore, pattern: str) -> list[str]:
 
     """
     all_keys = store.keys()
-    matched = fnmatch.filter(all_keys, pattern)
+    matched = [key for key in all_keys if fnmatch.fnmatchcase(key, pattern)]
     return sorted(matched)
 
 

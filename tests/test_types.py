@@ -52,6 +52,22 @@ class TestSerializeValue:
         with pytest.raises(SerializationError, match="Cannot serialize"):
             serialize_value(object())  # type: ignore[arg-type]
 
+    def test_top_level_tuple_raises(self) -> None:
+        """Reject a tuple stored directly (top-level guard)."""
+        with pytest.raises(SerializationError, match="Cannot serialize"):
+            serialize_value((1, 2))  # type: ignore[arg-type]
+
+    def test_nested_tuple_is_coerced_to_list(self) -> None:
+        """Document that tuples inside a list are silently coerced to lists."""
+        # JSON has no tuples, so nested tuples become lists on the round-trip.
+        result = serialize_value([(1, 2), (3, 4)])
+        assert result == {"type": "list", "data": [[1, 2], [3, 4]]}
+
+    def test_nested_non_string_keys_coerced_to_strings(self) -> None:
+        """Document that non-string dict keys are silently coerced to strings."""
+        result = serialize_value({1: "a", 2: "b"})  # type: ignore[dict-item]
+        assert result == {"type": "dict", "data": {"1": "a", "2": "b"}}
+
 
 class TestDeserializeValue:
     """Test deserializing stored format back to Python values."""

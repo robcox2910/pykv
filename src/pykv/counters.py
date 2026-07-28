@@ -91,6 +91,9 @@ class AtomicCounter:
     def get_value(self, key: str) -> int:
         """Read the current counter value.
 
+        Like glancing at the number on the tally counter without clicking
+        it. If nobody has clicked it yet, it reads 0.
+
         Args:
             key: The counter name.
 
