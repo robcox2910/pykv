@@ -7,6 +7,7 @@ import pytest
 from pykv.errors import PersistenceError
 from pykv.persistence import load_store, save_store
 from pykv.store import BasicStore
+from pykv.ttl import TTLStore
 
 EXPECTED_AGE = 13
 EXPECTED_INT = 42
@@ -77,6 +78,27 @@ class TestLoadStore:
         save_store(store, filepath)
         loaded = load_store(filepath)
         assert loaded.get("key") == "value"
+
+
+class TestSaveTTLStore:
+    """Test that saving a TTLStore is rejected instead of losing TTLs."""
+
+    def test_save_ttl_store_raises(self, tmp_path: Path) -> None:
+        """Raise PersistenceError rather than silently dropping timers."""
+        store = TTLStore()
+        store.set("session", "abc123", ttl=60.0)
+        filepath = tmp_path / "ttl.json"
+        with pytest.raises(PersistenceError, match="Cannot save a TTLStore"):
+            save_store(store, filepath)
+
+    def test_save_ttl_store_does_not_create_file(self, tmp_path: Path) -> None:
+        """Reject the TTLStore before writing anything to disk."""
+        store = TTLStore()
+        store.set("key", "value")
+        filepath = tmp_path / "ttl.json"
+        with pytest.raises(PersistenceError):
+            save_store(store, filepath)
+        assert not filepath.exists()
 
 
 class TestRoundTrip:

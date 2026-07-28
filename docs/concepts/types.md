@@ -55,3 +55,22 @@ PyKV supports the most common types. You cannot store:
 - Functions
 
 If you try, you'll get a `SerializationError` with a helpful message explaining what went wrong.
+
+### One honest catch: coercion happens *inside* lists and dicts
+
+The `SerializationError` only guards the **top-level** value. Because saving
+round-trips your value through JSON, unsupported types *nested inside* a list
+or dict are quietly converted instead of rejected:
+
+```python
+store.set("point", (1, 2))          # top-level tuple -> SerializationError (blocked)
+
+store.set("points", [(1, 2), (3, 4)])  # tuples inside a list -> saved as [[1, 2], [3, 4]]
+store.set("scores", {1: "a", 2: "b"})  # int dict keys -> saved as {"1": "a", "2": "b"}
+```
+
+So "you cannot store tuples" is true for a tuple you store directly, but a
+tuple tucked inside a list becomes a list, and non-string dict keys become
+strings. JSON simply has no tuples and only allows string keys. When in
+doubt, use lists and string keys from the start so what you load back is
+exactly what you saved.

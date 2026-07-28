@@ -50,11 +50,33 @@ store.get("flash")          # "now you see me"
 
 time.sleep(2)               # Wait for expiration...
 
-store.get("flash")          # Raises KeyNotFoundError!
+store.get("flash")          # Raises KeyExpiredError!
 store.exists("flash")       # False
 ```
 
 The expired key is cleaned up automatically -- like the milk being thrown away.
+
+### Expired vs. never existed
+
+PyKV tells you *why* a lookup failed with two different errors:
+
+- **`KeyNotFoundError`** -- the key was never set (like asking for a carton you never bought).
+- **`KeyExpiredError`** -- the key existed but its timer ran out (like reaching for milk that is past its date).
+
+Both are subclasses of `PyKVError`, so you can catch either one with `except PyKVError`, or handle them separately:
+
+```python
+from pykv.errors import KeyExpiredError, KeyNotFoundError
+
+try:
+    value = store.get("session")
+except KeyExpiredError:
+    print("Your session timed out -- please log in again.")
+except KeyNotFoundError:
+    print("No such session.")
+```
+
+Both `get` and `ttl_remaining` follow this rule.
 
 ## Refreshing TTL
 

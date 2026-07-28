@@ -26,23 +26,41 @@ from pathlib import Path
 
 from pykv.errors import PersistenceError
 from pykv.store import BasicStore
+from pykv.ttl import TTLStore
 from pykv.types import StorableValue, deserialize_value, serialize_value
 
 
-def save_store(store: BasicStore, filepath: str | Path) -> None:
-    """Save all data from a BasicStore to a JSON file on disk.
+def save_store(store: BasicStore | TTLStore, filepath: str | Path) -> None:
+    """Save all data from a store to a JSON file on disk.
 
     Like writing everything from your notebook into a save file.
     If the file already exists, it will be overwritten.
 
+    Only a :class:`~pykv.store.BasicStore` can be saved. A
+    :class:`~pykv.ttl.TTLStore` is rejected on purpose: its expiration
+    timers use a monotonic clock that is meaningless once the program
+    restarts, so quietly saving the values while losing every timer would
+    be dishonest. (Teaching a TTLStore to save and restore its timers --
+    by writing down the *seconds remaining* and recounting them on load --
+    is a great exercise to try yourself!)
+
     Args:
-        store: The store to save.
+        store: The store to save. Must be a BasicStore.
         filepath: Path to the JSON file to create or overwrite.
 
     Raises:
-        PersistenceError: If writing to disk fails.
+        PersistenceError: If writing to disk fails, or if a TTLStore is
+            passed (its expiration timers cannot be persisted).
 
     """
+    if isinstance(store, TTLStore):
+        msg = (
+            "Cannot save a TTLStore: its expiration timers cannot be persisted. "
+            "Copy the values into a BasicStore first, or implement TTL "
+            "persistence yourself as an exercise."
+        )
+        raise PersistenceError(msg)
+
     path = Path(filepath)
     data = store.to_dict()
 

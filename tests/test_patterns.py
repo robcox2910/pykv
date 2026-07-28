@@ -53,6 +53,15 @@ class TestMatchKeys:
         store.set("b", 2)
         assert match_keys(store, "*") == ["a", "b", "c"]
 
+    def test_match_is_case_sensitive(self) -> None:
+        """Match case-sensitively and deterministically on every OS."""
+        store = BasicStore()
+        store.set("user:alice", "admin")
+        store.set("User:bob", "member")
+        # An uppercase pattern must not match a lowercase key.
+        assert match_keys(store, "user:*") == ["user:alice"]
+        assert match_keys(store, "User:*") == ["User:bob"]
+
 
 class TestMatchItems:
     """Test finding key-value pairs by glob pattern."""

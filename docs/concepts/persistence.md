@@ -57,6 +57,34 @@ except PersistenceError as e:
     print(f"Oops: {e}")  # "Failed to load store from missing_file.json: ..."
 ```
 
+## What About TTLStore?
+
+Persistence only works with a `BasicStore`. If you try to `save_store` a
+`TTLStore`, you get a clear `PersistenceError` instead of silently losing
+your expiration timers:
+
+```python
+from pykv import TTLStore, save_store
+from pykv.errors import PersistenceError
+
+ttl_store = TTLStore()
+ttl_store.set("session", "abc123", ttl=60.0)
+
+try:
+    save_store(ttl_store, "session.json")
+except PersistenceError as e:
+    print(e)  # Cannot save a TTLStore: its expiration timers cannot be persisted...
+```
+
+Why not just save the values? Because a TTL timer measures time from *right
+now* using a clock that resets when your program restarts. Saving the timer
+to disk would be meaningless after a restart, so PyKV refuses rather than
+quietly saving the values and dropping every timer.
+
+Teaching a TTLStore to save and restore its timers -- by writing down the
+*seconds remaining* for each key and recounting them on load -- is a great
+exercise to try yourself!
+
 ## Tips
 
 - **Save often**: Call `save_store` after important changes
