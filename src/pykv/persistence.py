@@ -24,6 +24,7 @@ Example:
 import json
 from pathlib import Path
 
+from pykv.atomic import atomic_write_text
 from pykv.errors import PersistenceError
 from pykv.store import BasicStore
 from pykv.ttl import TTLStore
@@ -70,7 +71,7 @@ def save_store(store: BasicStore | TTLStore, filepath: str | Path) -> None:
 
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(serialized, indent=2), encoding="utf-8")
+        atomic_write_text(path, json.dumps(serialized, indent=2))
     except OSError as exc:
         msg = f"Failed to save store to {path}: {exc}"
         raise PersistenceError(msg) from exc

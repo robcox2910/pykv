@@ -1,5 +1,6 @@
 """Tests for persistence -- saving and loading stores to disk."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -126,3 +127,36 @@ class TestRoundTrip:
         assert loaded.get("none") is None
         assert loaded.get("list") == [1, 2, 3]
         assert loaded.get("dict") == {"a": 1}
+
+
+class _SimulatedCrashError(OSError):
+    """Stands in for the power going out part-way through a save."""
+
+
+def test_interrupted_save_keeps_the_previous_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a crash mid-save used to leave a truncated, unloadable file."""
+    store = BasicStore()
+    store.set("k", "old")
+    path = tmp_path / "data.json"
+    save_store(store, path)
+    before = path.read_bytes()
+    store.set("k", "new")
+
+    def write_half_then_crash(self: Path, data: str, *_args: object, **_kwargs: object) -> int:
+        with self.open("w", encoding="utf-8") as handle:
+            handle.write(data[: len(data) // 2])
+        raise _SimulatedCrashError
+
+    def crash(*_args: object) -> None:
+        raise _SimulatedCrashError
+
+    monkeypatch.setattr(Path, "write_text", write_half_then_crash)
+    monkeypatch.setattr(os, "replace", crash)
+    with pytest.raises((OSError, PersistenceError)):
+        save_store(store, path)
+    monkeypatch.undo()
+    assert path.read_bytes() == before
+    load_store(path)
+    assert [p.name for p in tmp_path.iterdir()] == ["data.json"]
