@@ -23,9 +23,10 @@ Example:
 
 import json
 from pathlib import Path
+from typing import cast
 
 from pykv.atomic import atomic_write_text
-from pykv.errors import PersistenceError
+from pykv.errors import PersistenceError, SerializationError
 from pykv.store import BasicStore
 from pykv.ttl import TTLStore
 from pykv.types import StorableValue, deserialize_value, serialize_value
@@ -101,14 +102,27 @@ def load_store(filepath: str | Path) -> BasicStore:
         raise PersistenceError(msg) from exc
 
     try:
-        serialized: dict[str, dict[str, object]] = json.loads(raw)
+        serialized: object = json.loads(raw)
     except json.JSONDecodeError as exc:
         msg = f"Invalid JSON in {path}: {exc}"
         raise PersistenceError(msg) from exc
 
+    # Refuse anything that isn't a saved store, rather than loading it as an
+    # empty one that the next save would write over.
+    if not isinstance(serialized, dict):
+        msg = f"{path} is not a saved store: the top level must be an object"
+        raise PersistenceError(msg)
+
     store = BasicStore()
-    for key, record in serialized.items():
-        value: StorableValue = deserialize_value(record)
+    for key, record in cast("dict[str, object]", serialized).items():
+        if not isinstance(record, dict):
+            msg = f"{path} is not a saved store: bad entry for key {key!r}"
+            raise PersistenceError(msg)
+        try:
+            value: StorableValue = deserialize_value(cast("dict[str, object]", record))
+        except (SerializationError, KeyError, TypeError, ValueError, AttributeError) as exc:
+            msg = f"{path} is not a saved store: bad entry for key {key!r}: {exc}"
+            raise PersistenceError(msg) from exc
         store.set(key, value)
 
     return store
