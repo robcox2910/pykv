@@ -133,6 +133,8 @@ one folder.
 So PyKV refuses a key with `:` in it and tells you why:
 
 ```python
+from pykv import NamespaceError
+
 users.set("admin:alice", 1)
 # NamespaceError: Key 'admin:alice' contains ':', which separates folder names ...
 ```
@@ -146,3 +148,10 @@ A namespace's name can't be empty, either, and every part of it between
 `NamespaceError`.
 
 `NamespaceError` is a `PyKVError`, so `except PyKVError:` catches it too.
+
+## Upgrading from 0.2
+
+Two things work differently since v0.3.0, and neither one raises an error, so watch out:
+
+- The `:` is now always added for you. A prefix written without one, like `Namespace(store, "cache_")`, now files `x` as `cache_:x` instead of `cache_x`.
+- An old key with `:` in it, like `users:admin:alice` written through the `users` namespace, now belongs to the nested `users:admin` folder. The `users` folder's `keys()`, `size()` and `clear()` skip it; use `Namespace(store, "users:admin")` to reach it.
