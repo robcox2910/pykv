@@ -60,10 +60,10 @@ def test_save_then_load_gives_back_the_same_store(contents: dict[str, StorableVa
         save_store(store_holding(contents), path)
         loaded = load_store(path).to_dict()
     assert loaded == contents
-    # ``==`` thinks True == 1 == 1.0, so also check each value kept its type.
-    assert {key: type(value) for key, value in loaded.items()} == {
-        key: type(value) for key, value in contents.items()
-    }
+    # ``==`` thinks True == 1 == 1.0, even inside lists and dicts, so a store
+    # that loaded ``[True]`` as ``[1]`` would pass it. ``repr`` writes True as
+    # ``True`` and 1.0 as ``1.0``, so it also checks every type, at every depth.
+    assert repr(loaded) == repr(contents)
 ```
 
 Line by line:
@@ -72,7 +72,8 @@ Line by line:
   for making random inputs. `st.text()` makes any string at all,
   including the empty string, `" "`, `"🍕"` and `"Zoë's \"key\""`.
   `store_contents()` makes a whole dictionary of keys and values;
-  `any_values()` (in the test file) makes any value PyKV can store:
+  `any_values()` (in `tests/strategies.py`, shared with the model check)
+  makes any value PyKV can store:
   text, numbers, `True`/`False`, `None`, and lists and dicts nested
   inside each other. Each one is a named function so the test reads like
   a sentence.
@@ -88,8 +89,11 @@ Line by line:
   must get back exactly what you put in. This kind of property is called
   a **round-trip**.
 - **The second `assert`** is there because Python thinks `True == 1`
-  and `1 == 1.0`. Without it, a store that saved `True` and loaded `1`
-  would pass. A good property says exactly what "the same" means.
+  and `1 == 1.0`. Without it, a store that saved `[True]` and loaded
+  `[1]` would pass. `repr()` turns a value into the text you'd type to
+  make it, and that text *does* tell `True` from `1` and `1.0` from `1`,
+  however deep inside lists and dicts they sit. A good property says
+  exactly what "the same" means.
 
 Notice what the test *doesn't* say. It never says "save `name -> Alice`
 and you get `Alice`". It doesn't need to know any answers. It only needs
@@ -177,7 +181,8 @@ Piece by piece:
 - **Each `@rule`** is one kind of step. It does the same thing to the
   store and to the dict. The real file has rules to set a new key,
   overwrite a key, delete, read with `get` and `get_or_default`, and
-  clear.
+  clear. The `get` rule also asks the store whether the key `exists`,
+  so a store that claims to hold a key it doesn't is caught too.
 - **`keys = Bundle("keys")`** is a bag of keys used earlier in the story.
   Two random strings almost never match, so without it the story would
   hardly ever overwrite or delete a key that is really there. `set_new_key`
@@ -307,6 +312,15 @@ missing one, naming the file. The shrunk input also became an ordinary
 example test in `tests/test_persistence.py`, so this bug can never sneak
 back in, even if someone deletes the property.
 
+The property's rule also made a reviewer ask: what *else* can go wrong
+inside `json.loads`? Two more things, it turned out. A number with more
+than 4,300 digits is too long for Python to read (a plain `ValueError`),
+and a file of 100,000 `[` characters is nested too deep (a
+`RecursionError`). Random bytes almost never look like that, so the
+inspector hadn't stumbled on them -- a reminder that a property only
+finds what its strategy can make. Both are now caught and turned into a
+`PersistenceError` too, and both are pinned as example tests.
+
 ## Run It Yourself
 
 Run just the property tests and the model check (100 examples each, the
@@ -330,13 +344,3 @@ The normal run uses a fixed seed, so it tries the same inputs every time
 and a passing build means the same thing on every computer. The thorough
 run is random, so each time you run it the inspector brings a brand-new
 pile of coats.
-
-## Next Up
-
-Try writing your own model check. A good place to start is
-[Namespaces](concepts/namespaces.md): a namespace should behave like its
-own little dict, and setting `"score"` in the `alice:` namespace should
-never change `"score"` in `bob:`. What's the model? (Hint: a dict of
-dicts.) Then let Hypothesis pick the prefixes too. What happens when one
-prefix starts with another, like `users:` and `users:admin:`? Let the
-inspector tell you.
