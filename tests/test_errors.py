@@ -60,3 +60,16 @@ class TestKeyExpiredError:
         """Include the key name in the error message."""
         err = KeyExpiredError("session")
         assert "session" in str(err)
+
+
+class TestPackageExports:
+    """Every PyKV error can be imported straight from ``pykv``."""
+
+    def test_namespace_error_is_exported(self) -> None:
+        """Import NamespaceError from the package, like the other errors."""
+        # Imported inside the test, so a missing name fails only this test.
+        import pykv  # noqa: PLC0415
+        from pykv import NamespaceError as Exported  # noqa: PLC0415
+
+        assert Exported is NamespaceError
+        assert "NamespaceError" in pykv.__all__

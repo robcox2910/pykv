@@ -178,6 +178,14 @@ class NamespaceMachine(RuleBasedStateMachine):
         with pytest.raises(NamespaceError):
             self.folders[name].set(key, value)
 
+    @rule(name=folder_names(), key=keys_with_separator())
+    def refuse_separator_on_reads_and_deletes(self, name: str, key: str) -> None:
+        """Refuse a key containing ":" on get, get_or_default, exists and delete too."""
+        folder = self.folders[name]
+        for method in (folder.get, folder.get_or_default, folder.exists, folder.delete):
+            with pytest.raises(NamespaceError):
+                method(key)
+
     @rule(name=folder_names())
     def clear(self, name: str) -> None:
         """Empty one folder, and only that folder."""
