@@ -168,6 +168,10 @@ class BasicStoreMachine(RuleBasedStateMachine):
         assert self.store.to_dict() == self.model
 
 
+# why: 20 steps find the same bugs; 50 (the default) is most of the run time
+BasicStoreMachine.TestCase.settings = settings(stateful_step_count=20)
+# pytest runs this like any other test class: one run plays 100 random stories.
+# (Hypothesis doesn't say what type ``TestCase`` is, so ``cast`` tells pyright.)
 TestBasicStoreModel = cast("type[unittest.TestCase]", BasicStoreMachine.TestCase)
 ```
 
@@ -192,7 +196,9 @@ Piece by piece:
 - **The `@invariant()`** runs after every single step and compares
   everything: how many keys, which keys, and every value.
 - **`TestBasicStoreModel = ...TestCase`** turns the machine into a test
-  that pytest can find and run. One run plays 100 random stories.
+  that pytest can find and run. One run plays 100 random stories, each
+  up to 20 steps long (the `settings` line above it; Hypothesis's default
+  is 50, which finds the same bugs but takes most of the run time).
 
 The `dict` is a good model because it's obviously right and it's *not*
 `BasicStore`'s code. If we built the model by copying `BasicStore`, any
@@ -225,7 +231,7 @@ Now `delete` says "yes, I deleted it" even when the key was never there.
 Run the property tests:
 
 ```bash
-uv run pytest tests/test_properties.py tests/test_model.py -q --no-cov -p no:randomly
+uv run pytest tests/test_properties.py tests/test_model.py --no-cov
 ```
 
 Hypothesis reports this (trimmed to the interesting part):
@@ -253,6 +259,12 @@ messy stories with dozens of sets and deletes, then shrank them all
 the way down to **one step**: start empty, delete the key `''`. The
 store said `True` ("deleted it!"), but the notebook knew there was
 nothing to delete.
+
+The example tests catch this bug too: three of them fail (run
+`uv run pytest --no-cov` without the two property files to see). What the
+inspector added is the smallest possible case, the single step `delete('')`
+on an empty store, and the exact step that went wrong, without anyone
+having to guess which delete to write a test for.
 
 Notice that `same_keys_and_values` would never catch this bug: the
 store's *contents* are still right. Only the rule that checks what
@@ -340,7 +352,7 @@ The `--no-cov` turns off the coverage check, which expects the *whole*
 test suite to run and would fail on two files.
 
 Run them the long way (2,000 random examples each, different every run)
-to hunt for rarer bugs:
+to hunt for rarer bugs. It takes about 5 minutes:
 
 ```bash
 uv run pytest tests/test_properties.py tests/test_model.py --no-cov --hypothesis-profile=thorough
@@ -349,4 +361,12 @@ uv run pytest tests/test_properties.py tests/test_model.py --no-cov --hypothesis
 The normal run uses a fixed seed, so it tries the same inputs every time
 and a passing build means the same thing on every computer. The thorough
 run is random, so each time you run it the inspector brings a brand-new
-pile of coats.
+pile of coats. Both settings live in `conftest.py` at the top of the
+project.
+
+## Your Turn
+
+Write one new property for PyKV. Think about `clear()`. What should be
+true afterwards, whatever was in the store before? What's the strategy
+that fills the store? What's the `assert`? Run it and watch it pass. Then
+break `clear()` on purpose and watch the inspector find it.

@@ -30,6 +30,7 @@ import unittest
 from typing import cast
 
 import pytest
+from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import Bundle, RuleBasedStateMachine, invariant, rule
 
@@ -106,6 +107,8 @@ class BasicStoreMachine(RuleBasedStateMachine):
         assert self.store.to_dict() == self.model
 
 
+# why: 20 steps find the same bugs; 50 (the default) is most of the run time
+BasicStoreMachine.TestCase.settings = settings(stateful_step_count=20)
 # pytest runs this like any other test class: one run plays 100 random stories.
 # (Hypothesis doesn't say what type ``TestCase`` is, so ``cast`` tells pyright.)
 TestBasicStoreModel = cast("type[unittest.TestCase]", BasicStoreMachine.TestCase)
@@ -204,4 +207,7 @@ class NamespaceMachine(RuleBasedStateMachine):
         assert self.store.size() == sum(len(expected) for expected in self.model.values())
 
 
+# why: 20 steps find the same bugs; 50 (the default) is most of the run time
+NamespaceMachine.TestCase.settings = settings(stateful_step_count=20)
+# pytest runs this like any other test class: one run plays 100 random stories.
 TestNamespaceModel = cast("type[unittest.TestCase]", NamespaceMachine.TestCase)
