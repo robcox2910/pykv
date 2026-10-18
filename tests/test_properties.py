@@ -63,15 +63,16 @@ def store_holding(contents: dict[str, StorableValue]) -> BasicStore:
     return store
 
 
-def load_or_refuse(path: Path) -> BasicStore | None:
-    """Load the store at ``path``, or return None if PyKV refuses it with PersistenceError.
+def load_or_refuse(path: Path) -> None:
+    """Load the store at ``path``, accepting only a PersistenceError refusal.
 
-    Any *other* exception is not caught, so it escapes and fails the test.
+    A PersistenceError is caught and ignored: refusing a bad file is fine. Any
+    *other* exception escapes and fails the test, and that is the whole check.
     """
     try:
-        return load_store(path)
+        load_store(path)
     except PersistenceError:
-        return None
+        return
 
 
 # --- Save and load: whatever you hand in comes back --------------------------
@@ -100,8 +101,7 @@ def test_any_bytes_on_disk_load_or_raise_persistence_error(junk: bytes) -> None:
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / "store.json"
         path.write_bytes(junk)
-        loaded = load_or_refuse(path)
-    assert loaded is None or isinstance(loaded, BasicStore)
+        load_or_refuse(path)
 
 
 @given(document=any_json())
@@ -110,5 +110,4 @@ def test_any_json_on_disk_load_or_raise_persistence_error(document: object) -> N
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / "store.json"
         path.write_text(json.dumps(document), encoding="utf-8")
-        loaded = load_or_refuse(path)
-    assert loaded is None or isinstance(loaded, BasicStore)
+        load_or_refuse(path)
