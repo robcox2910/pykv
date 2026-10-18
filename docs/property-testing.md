@@ -261,7 +261,8 @@ store said `True` ("deleted it!"), but the notebook knew there was
 nothing to delete.
 
 The example tests catch this bug too: three of them fail (run
-`uv run pytest --no-cov` without the two property files to see). What the
+`uv run pytest --no-cov --ignore=tests/test_properties.py --ignore=tests/test_model.py`
+to see). What the
 inspector added is the smallest possible case, the single step `delete('')`
 on an empty store, and the exact step that went wrong, without anyone
 having to guess which delete to write a test for.
@@ -368,5 +369,7 @@ project.
 
 Write one new property for PyKV. Think about `clear()`. What should be
 true afterwards, whatever was in the store before? What's the strategy
-that fills the store? What's the `assert`? Run it and watch it pass. Then
-break `clear()` on purpose and watch the inspector find it.
+that fills the store? What's the `assert`? Try it in a scratch file first
+(say `tests/test_scratch.py`) so you can experiment freely, and move it
+into `tests/test_properties.py` once you like it. Run it and watch it
+pass. Then break `clear()` on purpose and watch the inspector find it.
