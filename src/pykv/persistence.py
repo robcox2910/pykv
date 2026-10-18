@@ -97,13 +97,18 @@ def load_store(filepath: str | Path) -> BasicStore:
 
     try:
         raw = path.read_text(encoding="utf-8")
-    except OSError as exc:
+    # A file that isn't UTF-8 text (an image, a zip, a corrupted save) fails
+    # while decoding, not while reading, so it needs catching too.
+    except (OSError, UnicodeDecodeError) as exc:
         msg = f"Failed to load store from {path}: {exc}"
         raise PersistenceError(msg) from exc
 
     try:
         serialized: object = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    # JSONDecodeError is a kind of ValueError; a plain ValueError also means a
+    # number too long for Python to read, and RecursionError means lists or
+    # objects nested too deep. Each one is a file PyKV can't load.
+    except (ValueError, RecursionError) as exc:
         msg = f"Invalid JSON in {path}: {exc}"
         raise PersistenceError(msg) from exc
 

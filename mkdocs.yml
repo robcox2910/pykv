@@ -49,6 +49,7 @@ nav:
   - "Persistence: Saving to Disk": concepts/persistence.md
   - "TTL: Time-To-Live": concepts/ttl.md
   - Data Types: concepts/types.md
+  - Property Testing: property-testing.md
   # series-nav:start
   - The series:
       - Series home: https://robcox2910.github.io/
