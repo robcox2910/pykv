@@ -105,7 +105,10 @@ def load_store(filepath: str | Path) -> BasicStore:
 
     try:
         serialized: object = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    # JSONDecodeError is a kind of ValueError; a plain ValueError also means a
+    # number too long for Python to read, and RecursionError means lists or
+    # objects nested too deep. Each one is a file PyKV can't load.
+    except (ValueError, RecursionError) as exc:
         msg = f"Invalid JSON in {path}: {exc}"
         raise PersistenceError(msg) from exc
 
