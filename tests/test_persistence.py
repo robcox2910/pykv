@@ -71,6 +71,16 @@ class TestLoadStore:
         with pytest.raises(PersistenceError, match="Invalid JSON"):
             load_store(filepath)
 
+    def test_load_file_that_is_not_utf8_text_raises(self, tmp_path: Path) -> None:
+        """Raise PersistenceError naming the file when it isn't UTF-8 text.
+
+        Regression: found by a property test, which shrank it to one byte.
+        """
+        filepath = tmp_path / "not_text.json"
+        filepath.write_bytes(b"\x80")
+        with pytest.raises(PersistenceError, match=r"not_text\.json"):
+            load_store(filepath)
+
     def test_save_accepts_string_path(self, tmp_path: Path) -> None:
         """Accept a string path instead of a Path object."""
         store = BasicStore()
