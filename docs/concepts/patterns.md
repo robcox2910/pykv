@@ -66,10 +66,11 @@ Pattern matching works great alongside namespaces for powerful data organization
 from pykv import BasicStore, Namespace, match_keys
 
 store = BasicStore()
-cache = Namespace(store, "cache:")
-cache.set("page:home", "<html>...")
-cache.set("page:about", "<html>...")
-cache.set("api:users", "[...]")
+pages = Namespace(store, "cache:page")   # a folder inside "cache"
+api = Namespace(store, "cache:api")
+pages.set("home", "<html>...")
+pages.set("about", "<html>...")
+api.set("users", "[...]")
 
 # Find all cached pages
 match_keys(store, "cache:page:*")  # ["cache:page:about", "cache:page:home"]

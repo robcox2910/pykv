@@ -12,7 +12,7 @@ Imagine a giant filing cabinet at school. Instead of throwing all papers into on
 📁 english:essay
 ```
 
-The folder name (`math:`, `science:`, `english:`) is the **namespace**. It keeps things organized so that `math:homework1` and `english:homework1` don't get mixed up.
+The folder name (`math`, `science`, `english`) is the **namespace**. The `:` between the folder name and the paper name is the **separator**. It keeps things organized so that `math:homework1` and `english:homework1` don't get mixed up.
 
 ## Creating a Namespace
 
@@ -22,8 +22,8 @@ from pykv import BasicStore, Namespace
 store = BasicStore()
 
 # Create namespaces (like labeled folders)
-users = Namespace(store, "users:")
-posts = Namespace(store, "posts:")
+users = Namespace(store, "users")
+posts = Namespace(store, "posts")
 ```
 
 ## Using Namespaces
@@ -46,6 +46,10 @@ users:alice  →  {"role": "admin"}
 users:bob    →  {"role": "member"}
 posts:1      →  "Hello, world!"
 ```
+
+The `:` is added for you. You can write it yourself if you like --
+`Namespace(store, "users:")` is exactly the same folder as
+`Namespace(store, "users")`.
 
 ## Listing Keys in a Namespace
 
@@ -74,8 +78,71 @@ store.set("count", 42)       # Game module
 store.set("count", 7)        # Chat module -- oops, overwrote game data!
 
 # With namespaces: Safe!
-game = Namespace(store, "game:")
-chat = Namespace(store, "chat:")
+game = Namespace(store, "game")
+chat = Namespace(store, "chat")
 game.set("count", 42)
 chat.set("count", 7)         # No collision!
 ```
+
+## Folders Inside Folders
+
+A folder can sit inside another folder. Use `:` in the namespace's
+*name* to nest it:
+
+```python
+users = Namespace(store, "users")
+admins = Namespace(store, "users:admin")   # a folder inside "users"
+
+users.set("bob", {"role": "member"})
+admins.set("alice", {"role": "admin"})
+```
+
+In the store, that's:
+
+```
+users:bob          →  {"role": "member"}
+users:admin:alice  →  {"role": "admin"}
+```
+
+Each folder only sees its own papers. The `admin` folder inside `users`
+is a separate folder, so `users` doesn't count what's inside it:
+
+```python
+users.keys()    # ["bob"]     (not "admin:alice"!)
+admins.keys()   # ["alice"]
+users.clear()   # empties "users" -- "users:admin" keeps alice
+```
+
+## The Separator Rule
+
+There is one rule that makes all of this work:
+
+> **A key inside a namespace can never contain `:`.**
+
+Here's why. Suppose the rule didn't exist, and the `users` folder filed
+a paper called `"admin:alice"`. Its full label would be
+`users:` + `admin:alice` = `users:admin:alice`. But that's exactly the
+label of `alice` in the `users:admin` folder! Two folders would be
+sharing one paper, and writing in one would scribble over the other.
+
+**Two folders must never share a paper.** With the rule, they can't:
+the folder is always everything before the *last* `:`, and the paper
+name is everything after it. Every label in the store belongs to exactly
+one folder.
+
+So PyKV refuses a key with `:` in it and tells you why:
+
+```python
+users.set("admin:alice", 1)
+# NamespaceError: Key 'admin:alice' contains ':', which separates folder names ...
+```
+
+If you wanted a folder inside `users`, make a nested namespace instead,
+like `Namespace(store, "users:admin")` above.
+
+A namespace's name can't be empty, either, and every part of it between
+`:`s needs at least one character. `Namespace(store, "")`,
+`Namespace(store, ":")` and `Namespace(store, "users::admin")` all raise
+`NamespaceError`.
+
+`NamespaceError` is a `PyKVError`, so `except PyKVError:` catches it too.
