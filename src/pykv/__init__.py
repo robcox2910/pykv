@@ -31,6 +31,7 @@ from pykv.counters import AtomicCounter
 from pykv.errors import (
     KeyExpiredError,
     KeyNotFoundError,
+    NamespaceError,
     PersistenceError,
     PyKVError,
     SerializationError,
@@ -50,6 +51,7 @@ __all__ = [
     "KeyNotFoundError",
     # Features
     "Namespace",
+    "NamespaceError",
     "PersistenceError",
     # Errors
     "PyKVError",
