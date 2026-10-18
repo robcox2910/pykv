@@ -198,6 +198,12 @@ The `dict` is a good model because it's obviously right and it's *not*
 `BasicStore`'s code. If we built the model by copying `BasicStore`, any
 bug would be in both, and they'd agree perfectly about the wrong answer.
 
+The same file has a second machine, `NamespaceMachine`, for
+[namespaces](concepts/namespaces.md). It plays steps on three folders in
+one store -- `users`, `users:admin` (nested inside it) and `posts` -- and
+its notebook is a dict of dicts, one per folder. It found that the
+`users` folder used to count, and clear, the papers in `users:admin`.
+
 `TTLStore` doesn't get a model check (yet). Its keys expire using the
 computer's real clock (`time.monotonic()`), and a test that has to
 *wait* for keys to expire is slow and flaky. If `TTLStore` let you hand

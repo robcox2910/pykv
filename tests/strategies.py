@@ -20,6 +20,16 @@ def any_keys() -> st.SearchStrategy[str]:
     return st.text()
 
 
+def namespace_keys() -> st.SearchStrategy[str]:
+    """Make any key a namespace accepts: any text at all, except the ``:`` separator."""
+    return st.text(alphabet=st.characters(exclude_characters=":"))
+
+
+def keys_with_separator() -> st.SearchStrategy[str]:
+    """Make a key a namespace must refuse: any text with at least one ``:`` in it."""
+    return st.lists(st.text(), min_size=2).map(":".join)
+
+
 def plain_values() -> st.SearchStrategy[StorableValue]:
     """Make one simple value: text, a whole number, a decimal, True/False or None."""
     return st.one_of(

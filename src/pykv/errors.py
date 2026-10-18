@@ -57,3 +57,12 @@ class PersistenceError(PyKVError):
     Like trying to save your game but the memory card is full or
     broken. Something went wrong with the file on disk.
     """
+
+
+class NamespaceError(PyKVError):
+    """Raise when a namespace name or a key inside a namespace breaks the rules.
+
+    Folders in a filing cabinet must never share a paper. A namespace
+    name can't be empty, and a key inside a namespace can't contain
+    the ``:`` separator -- otherwise one folder could reach into another.
+    """
