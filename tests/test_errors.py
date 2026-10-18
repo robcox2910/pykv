@@ -3,6 +3,7 @@
 from pykv.errors import (
     KeyExpiredError,
     KeyNotFoundError,
+    NamespaceError,
     PersistenceError,
     PyKVError,
     SerializationError,
@@ -27,6 +28,10 @@ class TestExceptionHierarchy:
     def test_persistence_is_pykv_error(self) -> None:
         """Verify PersistenceError is a PyKVError."""
         assert issubclass(PersistenceError, PyKVError)
+
+    def test_namespace_is_pykv_error(self) -> None:
+        """Verify NamespaceError is a PyKVError."""
+        assert issubclass(NamespaceError, PyKVError)
 
 
 class TestKeyNotFoundError:

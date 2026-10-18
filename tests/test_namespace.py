@@ -2,7 +2,7 @@
 
 import pytest
 
-from pykv.errors import KeyNotFoundError
+from pykv.errors import KeyNotFoundError, NamespaceError
 from pykv.namespace import Namespace
 from pykv.store import BasicStore
 
@@ -140,3 +140,107 @@ class TestMultipleNamespaces:
         ns_b.set("key", "value_b")
         assert ns_a.get("key") == "value_a"
         assert ns_b.get("key") == "value_b"
+
+
+class TestNestedNamespacesDoNotOverlap:
+    """Two folders must never share a paper, even when one sits inside the other."""
+
+    def test_parent_keys_skip_the_nested_folder(self) -> None:
+        """List only the parent's own keys, not the nested namespace's keys."""
+        store = BasicStore()
+        users = Namespace(store, "users:")
+        admins = Namespace(store, "users:admin:")
+        users.set("bob", 1)
+        admins.set("alice", 2)
+        assert users.keys() == ["bob"]
+        assert admins.keys() == ["alice"]
+
+    def test_parent_size_skips_the_nested_folder(self) -> None:
+        """Count only the parent's own keys, not the nested namespace's keys."""
+        store = BasicStore()
+        users = Namespace(store, "users:")
+        admins = Namespace(store, "users:admin:")
+        admins.set("alice", 2)
+        assert users.size() == 0
+        assert admins.size() == 1
+
+    def test_parent_clear_leaves_the_nested_folder_alone(self) -> None:
+        """Clearing the parent must not wipe the nested namespace."""
+        store = BasicStore()
+        users = Namespace(store, "users:")
+        admins = Namespace(store, "users:admin:")
+        users.set("bob", 1)
+        admins.set("alice", 2)
+        users.clear()
+        assert users.size() == 0
+        assert admins.get("alice") == 2  # noqa: PLR2004
+
+    def test_nested_clear_leaves_the_parent_alone(self) -> None:
+        """Clearing the nested namespace must not touch the parent's keys."""
+        store = BasicStore()
+        users = Namespace(store, "users")
+        admins = Namespace(store, "users:admin")
+        users.set("bob", 1)
+        admins.set("alice", 2)
+        admins.clear()
+        assert users.get("bob") == 1
+        assert admins.size() == 0
+
+    def test_key_with_separator_cannot_reach_another_folder(self) -> None:
+        """Refuse a key containing ':' so it can't land on another namespace's key."""
+        store = BasicStore()
+        users = Namespace(store, "users:")
+        admins = Namespace(store, "users:admin:")
+        admins.set("alice", 2)
+        with pytest.raises(NamespaceError, match="':'"):
+            users.set("admin:alice", 1)
+        assert admins.get("alice") == 2  # noqa: PLR2004
+
+    @pytest.mark.parametrize("method", ["get", "get_or_default", "delete", "exists"])
+    def test_every_key_method_refuses_the_separator(self, method: str) -> None:
+        """Refuse a key containing ':' on reads and deletes too, not just on set."""
+        store = BasicStore()
+        users = Namespace(store, "users")
+        store.set("users:admin:alice", 2)
+        with pytest.raises(NamespaceError):
+            getattr(users, method)("admin:alice")
+        assert store.get("users:admin:alice") == 2  # noqa: PLR2004
+
+
+class TestNamespaceName:
+    """The name is the folder label; a trailing ':' is optional."""
+
+    def test_trailing_separator_is_optional(self) -> None:
+        """Treat "users" and "users:" as the same folder."""
+        store = BasicStore()
+        Namespace(store, "users").set("alice", 1)
+        assert Namespace(store, "users:").get("alice") == 1
+        assert store.get("users:alice") == 1
+
+    def test_name_and_prefix(self) -> None:
+        """Expose the name without the separator and the prefix with it."""
+        store = BasicStore()
+        for given in ("users:admin", "users:admin:"):
+            ns = Namespace(store, given)
+            assert ns.name == "users:admin"
+            assert ns.prefix == "users:admin:"
+
+    def test_nested_name_files_keys_under_both_labels(self) -> None:
+        """Store a nested namespace's key as name + ':' + key."""
+        store = BasicStore()
+        Namespace(store, "users:admin").set("alice", 1)
+        assert store.keys() == ["users:admin:alice"]
+
+    @pytest.mark.parametrize("bad_name", ["", ":", "::", ":users", "users::admin", "users::"])
+    def test_name_with_an_empty_part_is_refused(self, bad_name: str) -> None:
+        """Refuse a name that is empty or has an empty part between separators."""
+        with pytest.raises(NamespaceError):
+            Namespace(BasicStore(), bad_name)
+
+    def test_empty_key_is_allowed(self) -> None:
+        """Allow the empty key: it is still a paper in exactly one folder."""
+        store = BasicStore()
+        users = Namespace(store, "users")
+        users.set("", 1)
+        assert users.keys() == [""]
+        assert store.get("users:") == 1
