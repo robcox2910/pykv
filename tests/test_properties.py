@@ -26,48 +26,11 @@ from pykv.errors import PersistenceError
 from pykv.persistence import load_store, save_store
 from pykv.store import BasicStore
 from pykv.types import StorableValue
+from tests.strategies import MOST_PIECES_PER_VALUE, any_keys, any_values, lists_and_dicts_of
 
 # --- Strategies: recipes for random inputs -----------------------------------
-
-# A nested value is built from at most this many plain pieces. Hypothesis
-# allows 100 by default, which makes each store slow to invent; small values
-# find the same bugs, and a failure shrinks to a small value anyway.
-MOST_PIECES_PER_VALUE = 10
-
-
-def any_keys() -> st.SearchStrategy[str]:
-    """Make any key at all: empty, spaces, emoji, accents, quotes, the lot."""
-    return st.text()
-
-
-def plain_values() -> st.SearchStrategy[StorableValue]:
-    """Make one simple value: text, a whole number, a decimal, True/False or None."""
-    return st.one_of(
-        st.text(),
-        st.integers(),
-        # NaN ("not a number") is never equal to itself, not even to a copy
-        # of itself, so ``==`` could never confirm it came back. That's a
-        # rule of floats, not of PyKV, so it's left out; infinity stays in.
-        st.floats(allow_nan=False),
-        st.booleans(),
-        st.none(),
-    )
-
-
-def lists_and_dicts_of(
-    children: st.SearchStrategy[object],
-) -> st.SearchStrategy[list[object] | dict[str, object]]:
-    """Make a list, or a dict with text keys, holding values made by ``children``."""
-    return st.one_of(
-        st.lists(children),
-        st.dictionaries(st.text(), children),
-    )
-
-
-def any_values() -> st.SearchStrategy[StorableValue]:
-    """Make any value PyKV can store, including lists and dicts nested inside each other."""
-    # The supported types are listed in pykv.types.StorableValue.
-    return st.recursive(plain_values(), lists_and_dicts_of, max_leaves=MOST_PIECES_PER_VALUE)
+# any_keys(), any_values() and lists_and_dicts_of() live in tests/strategies.py,
+# shared with the model check.
 
 
 def store_contents() -> st.SearchStrategy[dict[str, StorableValue]]:
@@ -80,16 +43,11 @@ def any_bytes() -> st.SearchStrategy[bytes]:
     return st.binary()
 
 
-def json_containers_of(children: st.SearchStrategy[object]) -> st.SearchStrategy[object]:
-    """Make a JSON list, or a JSON object with text keys, holding ``children``."""
-    return st.one_of(st.lists(children), st.dictionaries(st.text(), children))
-
-
 def any_json() -> st.SearchStrategy[object]:
     """Make any JSON document at all, whether or not it looks like a saved store."""
     return st.recursive(
         st.one_of(st.none(), st.booleans(), st.integers(), st.floats(), st.text()),
-        json_containers_of,
+        lists_and_dicts_of,
         max_leaves=MOST_PIECES_PER_VALUE,
     )
 
@@ -116,7 +74,7 @@ def load_or_refuse(path: Path) -> BasicStore | None:
         return None
 
 
-# --- Save and load: the photo of your puzzle is the whole puzzle --------------
+# --- Save and load: whatever you hand in comes back --------------------------
 
 
 @given(contents=store_contents())
@@ -127,10 +85,10 @@ def test_save_then_load_gives_back_the_same_store(contents: dict[str, StorableVa
         save_store(store_holding(contents), path)
         loaded = load_store(path).to_dict()
     assert loaded == contents
-    # ``==`` thinks True == 1 == 1.0, so also check each value kept its type.
-    assert {key: type(value) for key, value in loaded.items()} == {
-        key: type(value) for key, value in contents.items()
-    }
+    # ``==`` thinks True == 1 == 1.0, even inside lists and dicts, so a store
+    # that loaded ``[True]`` as ``[1]`` would pass it. ``repr`` writes True as
+    # ``True`` and 1.0 as ``1.0``, so it also checks every type, at every depth.
+    assert repr(loaded) == repr(contents)
 
 
 # --- Loading junk: a bad save file is refused, never a crash ------------------
