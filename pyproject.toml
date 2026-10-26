@@ -1,5 +1,5 @@
 [project]
-name = "pykv"
+name = "fromscratch-pykv"
 dynamic = ["version"]
 description = "An educational key-value store library built from scratch in Python"
 readme = "README.md"
