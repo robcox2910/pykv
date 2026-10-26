@@ -37,6 +37,14 @@ PyKV is your own key-value store, built from scratch! Here's what you'll learn:
 | **Patterns** | Search for keys by pattern | Finding files on your computer |
 | **Persistence** | Save to disk | Writing in your notebook |
 
+## Install
+
+```bash
+pip install fromscratch-pykv
+```
+
+Or get the whole series at once with `pip install fromscratch-pystack`. To read the code or run the tests, clone it from [GitHub](https://github.com/robcox2910/pykv).
+
 ## Quick Start
 
 ```python
