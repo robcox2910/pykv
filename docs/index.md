@@ -1,4 +1,8 @@
-# What is a Key-Value Store?
+---
+title: "Build your own key-value store in Python"
+---
+
+# PyKV: Build your own key-value store in Python
 
 ## The Phonebook Analogy
 
